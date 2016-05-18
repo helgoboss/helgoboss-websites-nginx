@@ -1,0 +1,182 @@
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    
+    # Pass some nice info to backend
+    proxy_set_header Host $host;
+    
+    # Backend shall see the real IP, not the one of the proxy
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    
+    # Enable keep-alive connections to reduce server load and increase performance (very good for SSL also)
+    keepalive_timeout  65;
+    
+    
+    # Default server
+    server {
+        return 404;
+    }
+
+    
+    # helgoboss.org
+    
+    # Configure cache
+    proxy_cache_path /var/cache/nginx/www-helgoboss-org keys_zone=www-helgoboss-org-cache:10m
+                     max_size=1000m inactive=7d;
+    # HTTP and HTTPS should deliver exactly the same results here so we don't want $scheme to be included in the cache key
+    proxy_cache_key "$request_method$host$request_uri$is_args$args";                 
+    
+    
+    server {
+        listen 80;
+        server_name  {{getv "/helgoboss.org/preview/fqdn"}};
+        return 301 https://$host$request_uri;
+    }
+    
+    server {
+        listen       443 ssl;
+        server_name  {{getv "/helgoboss.org/preview/fqdn"}};
+        ssl_certificate     /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.crt;
+        ssl_certificate_key /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.key;
+        
+        # Access only with password
+        auth_basic "Closed website";
+        auth_basic_user_file /usr/local/nginx/conf/htpasswd;
+
+        location / {
+            proxy_pass  http://127.0.0.1:16000;
+            proxy_redirect http:// $scheme://;
+        }
+        
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    
+    server {
+        listen        80;
+        listen       443 ssl;
+        server_name   helgoboss.org;
+        ssl_certificate     /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.crt;
+        ssl_certificate_key /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.key;
+        return        301 $scheme://www.helgoboss.org$request_uri;
+    }
+    
+    server {
+        listen       80;
+        listen       443 ssl;
+        server_name  {{getv "/helgoboss.org/live/fqdn"}};
+        
+        # SSL
+        ssl_certificate     /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.crt;
+        ssl_certificate_key /usr/local/nginx/conf/ssl/{{getv "/helgoboss.org/ssl_cert_name"}}.key;
+                
+        # Switch on server cache
+        proxy_cache www-helgoboss-org-cache;  
+        
+        # We cache a long time and explicitly use wget with custom HTTP header X-Refresh-Cache to refresh cache on publish.
+        # We don't cache forever because otherwise removed pages would stay forever.
+        # A slow crawler in background takes care to keep the cache warm so nobody ever needs to wait.
+        proxy_cache_valid 200 302 60m;
+        proxy_cache_valid 404 60m;
+        proxy_cache_bypass $http_x_refresh_cache;
+               
+        # Switch on client cache
+        expires 1m;
+        
+        # Add some cache info
+        add_header X-Cache-Status $upstream_cache_status;
+
+        location / {
+            proxy_pass  http://127.0.0.1:16001;
+            proxy_redirect http:// $scheme://;
+        }
+        
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    
+    
+    
+    # benjamin-klum.com
+    
+    # Configure cache
+    proxy_cache_path /var/cache/nginx/www-benjamin-klum-com keys_zone=www-benjamin-klum-com-cache:10m
+                     max_size=1000m inactive=7d;
+
+    server {
+        listen 80;
+        server_name  {{getv "/benjamin-klum.com/preview/fqdn"}};
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen       443 ssl;
+        server_name  {{getv "/benjamin-klum.com/preview/fqdn"}};
+        ssl_certificate     /usr/local/nginx/conf/ssl/{{getv "/benjamin-klum.com/ssl_cert_name"}}.crt;
+        ssl_certificate_key /usr/local/nginx/conf/ssl/{{getv "/benjamin-klum.com/ssl_cert_name"}}.key;
+        
+        # Access only with password
+        auth_basic "Closed website";
+        auth_basic_user_file /usr/local/nginx/conf/htpasswd;
+
+        location / {
+            proxy_pass  http://127.0.0.1:17000;
+        }
+        
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    
+    server {
+        listen        80;
+        server_name   benjamin-klum.com;
+        return        301 $scheme://www.benjamin-klum.com$request_uri;
+    }
+    
+    server {
+        listen       80;
+        server_name  {{getv "/benjamin-klum.com/live/fqdn"}};
+                
+        # Switch on server cache
+        proxy_cache www-benjamin-klum-com-cache;  
+        
+        # We cache a long time and explicitly use wget with custom HTTP header X-Refresh-Cache to refresh cache on publish.
+        # We don't cache forever because otherwise removed pages would stay forever.
+        # A slow crawler in background takes care to keep the cache warm so nobody ever needs to wait.
+        proxy_cache_valid 200 302 60m;
+        proxy_cache_valid 404 60m;
+        proxy_cache_bypass $http_x_refresh_cache;
+               
+        # Switch on client cache
+        expires 1m;
+        
+        # Add some cache info
+        add_header X-Cache-Status $upstream_cache_status;
+
+        location / {
+            proxy_pass  http://127.0.0.1:17001;
+        }
+        
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+}
+
+# stay in the foreground so Docker has a process to track
+daemon off;

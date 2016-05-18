@@ -1,0 +1,13 @@
+[template]
+src = "nginx.conf.tmpl"
+dest = "/etc/nginx.conf"
+keys = [
+  "/helgoboss.org/preview/fqdn",
+  "/helgoboss.org/live/fqdn",
+  "/helgoboss.org/ssl_cert_name",
+  "/benjamin-klum.com/preview/fqdn",
+  "/benjamin-klum.com/live/fqdn",
+  "/benjamin-klum.com/ssl_cert_name"
+]
+owner = "root"
+mode = "0644"
