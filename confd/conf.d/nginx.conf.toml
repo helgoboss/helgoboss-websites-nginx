@@ -1,6 +1,6 @@
 [template]
 src = "nginx.conf.tmpl"
-dest = "/etc/nginx.conf"
+dest = "/etc/nginx/nginx.conf"
 keys = [
   "/helgoboss/org/preview/fqdn",
   "/helgoboss/org/live/fqdn",
