@@ -19,6 +19,8 @@ http {
     # Enable keep-alive connections to reduce server load and increase performance (very good for SSL also)
     keepalive_timeout  65;
     
+    # Use this name server to resolve proxy backends dynamically (in Rancher that means that backends can be restarted and nginx is going to find them)
+    resolver {{getv "/nameserver"}};
     
     # Default server
     server {
@@ -52,7 +54,9 @@ http {
         auth_basic_user_file /etc/nginx/htpasswd;
 
         location / {
-            proxy_pass  http://127.0.0.1:16000;
+            # Use proxy_pass with variable to force dynamic DNS lookup
+            set $backend "http://127.0.0.1:16000";
+            proxy_pass $backend;
             proxy_redirect http:// $scheme://;
         }
         
@@ -97,7 +101,9 @@ http {
         add_header X-Cache-Status $upstream_cache_status;
 
         location / {
-            proxy_pass  http://127.0.0.1:16001;
+            # Use proxy_pass with variable to force dynamic DNS lookup
+            set $backend "http://127.0.0.1:16001";
+            proxy_pass $backend;
             proxy_redirect http:// $scheme://;
         }
         
@@ -132,7 +138,9 @@ http {
         auth_basic_user_file /etc/nginx/htpasswd;
 
         location / {
-            proxy_pass  http://127.0.0.1:17000;
+            # Use proxy_pass with variable to force dynamic DNS lookup
+            set $backend "http://127.0.0.1:17000";
+            proxy_pass $backend;
         }
         
         error_page   500 502 503 504  /50x.html;
@@ -168,7 +176,9 @@ http {
         add_header X-Cache-Status $upstream_cache_status;
 
         location / {
-            proxy_pass  http://127.0.0.1:17001;
+            # Use proxy_pass with variable to force dynamic DNS lookup
+            set $backend "http://127.0.0.1:17001";
+            proxy_pass $backend;
         }
         
         error_page   500 502 503 504  /50x.html;
